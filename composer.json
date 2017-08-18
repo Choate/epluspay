@@ -1,0 +1,21 @@
+{
+  "name": "choate/epluspay",
+  "description": "CMBC E Plus Pay library",
+  "type": "library",
+  "license": "BSD",
+  "authors": [
+    {
+      "name": "Choate",
+      "email": "choate.yao@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.5.0",
+    "ramsey/uuid": "^3.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "choate\\epluspay\\": "src/"
+    }
+  }
+}
