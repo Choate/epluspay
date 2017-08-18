@@ -141,17 +141,8 @@ class Client implements ClientInterface
         $requestBodyJson = json_encode($requestBody);
         // 指定请求媒体类型
         $headers = ['Content-type' => 'application/json'];
-        $options = [];
-        // Debug
-        $hooks = new \Requests_Hooks();
-        $hooks->register('curl.before_send', function ($handle) {
-            $verbose = fopen('/tmp/curl_debug', 'a+');
-            curl_setopt($handle, CURLOPT_VERBOSE, true);
-            curl_setopt($handle, CURLOPT_STDERR, $verbose);
-        });
-        $options['hooks'] = $hooks;
         // 请求接口
-        $response = \Requests::post($this->getServerUrl(), $headers, $requestBodyJson, $options);
+        $response = \Requests::post($this->getServerUrl(), $headers, $requestBodyJson);
         $response->throw_for_status(false);
         $responseBody = json_decode($response->body, true);
 
