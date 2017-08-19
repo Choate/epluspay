@@ -4,10 +4,10 @@ namespace choate\epluspay\base;
 
 use choate\epluspay\exceptions\ResponseCodeException;
 use choate\epluspay\exceptions\SignatureValidateException;
-use choate\epluspay\helpers\Serializer;
 use choate\epluspay\helpers\ArrayHelper;
+use choate\epluspay\helpers\Serializer;
 
-class Response
+class ParseResponse
 {
     const SUCCESS_CODE       = '10000';
 
@@ -61,9 +61,9 @@ class Response
     private $rand_str;
 
     /**
-     * @var RequestInterface
+     * @var ResponseInterface
      */
-    private $request;
+    private $response;
 
     /**
      * 校验签名
@@ -73,13 +73,20 @@ class Response
     private $signature;
 
     /**
+     * 响应主体
+     *
+     * @var string
+     */
+    private $stream;
+
+    /**
      * 响应时间, 时间戳精确到毫秒
      *
      * @var int
      */
     private $timestamp;
 
-    public function __construct($responseBody, RequestInterface $request, SignatureInterface $encryption)
+    public function __construct($responseBody, ResponseInterface $response, SignatureInterface $encryption)
     {
         $code = ArrayHelper::getValue($responseBody, 'code');
         $message = ArrayHelper::getValue($responseBody, 'message');
@@ -88,18 +95,18 @@ class Response
         $timestamp = ArrayHelper::getValue($responseBody, 'timestamp');
         $randStr = ArrayHelper::getValue($responseBody, 'randStr');
 
-        $this->request = $request;
+        $this->response = $response;
         $this->encryption = $encryption;
+        $this->setStream($responseBody);
         $this->setCode($code);
         $this->setMessage($message);
         $this->setData($data);
         $this->setSignature($signature);
-        $this->timestamp = $timestamp;
-        $this->rand_str = $randStr;
-        if ($this->getIsFailure()) {
-            throw new ResponseCodeException($this->getCode(), $this->getMessage());
-        }
+        $this->setTimestamp($timestamp);
+        $this->setRandStr($randStr);
+        $this->validateCode();
         $this->validateSignature();
+        $this->loadResponseData();
     }
 
     /**
@@ -160,13 +167,25 @@ class Response
         $this->message = $message;
     }
 
+    /**
+     * @return string
+     */
+    public function getRandStr()
+    {
+        return $this->rand_str;
+    }
+
+    /**
+     * @param string $rand_str
+     */
+    public function setRandStr($rand_str)
+    {
+        $this->rand_str = $rand_str;
+    }
+
     public function getResponse()
     {
-        $request = $this->request;
-        $values = Serializer::unSerialize($this->getData());
-        $request->setResponse($values);
-
-        return $request->getResponse();
+        return $this->response;
     }
 
     /**
@@ -185,14 +204,60 @@ class Response
         $this->signature = $signature;
     }
 
+    /**
+     * @return string
+     */
+    public function getStream()
+    {
+        return $this->stream;
+    }
+
+    /**
+     * @param string $stream
+     */
+    public function setStream($stream)
+    {
+        $this->stream = $stream;
+    }
+
+    /**
+     * @return int
+     */
+    public function getTimestamp()
+    {
+        return $this->timestamp;
+    }
+
+    /**
+     * @param int $timestamp
+     */
+    public function setTimestamp($timestamp)
+    {
+        $this->timestamp = $timestamp;
+    }
+
+    protected function loadResponseData()
+    {
+        $response = $this->getResponse();
+        $values = Serializer::unSerialize($this->getData());
+        $response->load($values);
+    }
+
+    protected function validateCode()
+    {
+        if ($this->getIsFailure()) {
+            throw new ResponseCodeException($this->getCode(), $this->getMessage());
+        }
+    }
+
     protected function validateSignature()
     {
         $values = [
             'code'      => $this->getCode(),
             'message'   => $this->getMessage(),
             'data'      => $this->getData(),
-            'randStr'   => $this->rand_str,
-            'timestamp' => $this->timestamp,
+            'randStr'   => $this->getRandStr(),
+            'timestamp' => $this->getTimestamp(),
         ];
         ksort($values);
         $signatureData = urldecode(http_build_query($values));

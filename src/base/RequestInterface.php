@@ -13,4 +13,6 @@ interface RequestInterface
     public function setResponse($response);
 
     public function getResponse();
+
+    public function buildResponse();
 }

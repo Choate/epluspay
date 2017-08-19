@@ -4,7 +4,7 @@ namespace choate\epluspay;
 
 use choate\epluspay\base\ClientInterface;
 use choate\epluspay\base\RequestInterface;
-use choate\epluspay\base\Response;
+use choate\epluspay\base\ParseResponse;
 use choate\epluspay\base\SignatureInterface;
 use choate\epluspay\helpers\Serializer;
 use Ramsey\Uuid\Uuid;
@@ -145,8 +145,9 @@ class Client implements ClientInterface
         $response = \Requests::post($this->getServerUrl(), $headers, $requestBodyJson);
         $response->throw_for_status(false);
         $responseBody = json_decode($response->body, true);
+        $request->buildResponse();
 
-        return new Response($responseBody, $request, $this->getEncryption());
+        return new ParseResponse($responseBody, $request->getResponse(), $this->getEncryption());
     }
 
     private function getTimestamp()
