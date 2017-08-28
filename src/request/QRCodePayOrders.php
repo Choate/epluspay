@@ -4,7 +4,6 @@ namespace choate\epluspay\request;
 
 use choate\epluspay\base\PayOrdersInterface;
 use choate\epluspay\base\RequestInterface;
-use choate\epluspay\response\QRCodePayOrders AS QRCodePayOrdersResponse;
 
 class QRCodePayOrders implements RequestInterface, PayOrdersInterface
 {
@@ -27,11 +26,6 @@ class QRCodePayOrders implements RequestInterface, PayOrdersInterface
     private $remark;
 
     private $requestId;
-
-    /**
-     * @var \choate\epluspay\base\ParseResponse
-     */
-    private $response;
 
     private $shopId;
 
@@ -194,21 +188,6 @@ class QRCodePayOrders implements RequestInterface, PayOrdersInterface
     public function setRequestId($requestId)
     {
         $this->requestId = $requestId;
-    }
-
-    public function getResponse()
-    {
-        return $this->response;
-    }
-
-    public function setResponse($response)
-    {
-        $this->response = $response;
-    }
-
-    public function buildResponse()
-    {
-        $this->setResponse(new QRCodePayOrdersResponse());
     }
 
     public function getScenario()

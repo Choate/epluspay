@@ -4,10 +4,11 @@ namespace choate\epluspay\base;
 
 use choate\epluspay\exceptions\ResponseCodeException;
 use choate\epluspay\exceptions\SignatureValidateException;
+use choate\epluspay\exceptions\UnknownPropertyException;
 use choate\epluspay\helpers\ArrayHelper;
-use choate\epluspay\helpers\Serializer;
+use choate\epluspay\helpers\Formatter;
 
-class ParseResponse
+class Response extends Object
 {
     const SUCCESS_CODE       = '10000';
 
@@ -42,6 +43,11 @@ class ParseResponse
     private $data;
 
     /**
+     * @var array
+     */
+    private $dataParams;
+
+    /**
      * @var SignatureInterface
      */
     private $encryption;
@@ -58,12 +64,7 @@ class ParseResponse
      *
      * @var string
      */
-    private $rand_str;
-
-    /**
-     * @var ResponseInterface
-     */
-    private $response;
+    private $randStr;
 
     /**
      * 校验签名
@@ -85,29 +86,6 @@ class ParseResponse
      * @var int
      */
     private $timestamp;
-
-    public function __construct($responseBody, ResponseInterface $response, SignatureInterface $encryption)
-    {
-        $code = ArrayHelper::getValue($responseBody, 'code');
-        $message = ArrayHelper::getValue($responseBody, 'message');
-        $data = ArrayHelper::getValue($responseBody, 'data');
-        $signature = ArrayHelper::getValue($responseBody, 'sign');
-        $timestamp = ArrayHelper::getValue($responseBody, 'timestamp');
-        $randStr = ArrayHelper::getValue($responseBody, 'randStr');
-
-        $this->response = $response;
-        $this->encryption = $encryption;
-        $this->setStream($responseBody);
-        $this->setCode($code);
-        $this->setMessage($message);
-        $this->setData($data);
-        $this->setSignature($signature);
-        $this->setTimestamp($timestamp);
-        $this->setRandStr($randStr);
-        $this->validateCode();
-        $this->validateSignature();
-        $this->loadResponseData();
-    }
 
     /**
      * @return mixed
@@ -141,6 +119,35 @@ class ParseResponse
         $this->data = $data;
     }
 
+    public function getDataParams($name = null, $defaultValue = null)
+    {
+        if (is_null($this->dataParams)) {
+            $this->dataParams = Formatter::decode($this->getData());
+        }
+
+        if (is_null($name)) {
+            return $this->dataParams;
+        }
+
+        return ArrayHelper::getValue($this->dataParams, $name, $defaultValue);
+    }
+
+    /**
+     * @return SignatureInterface
+     */
+    public function getEncryption()
+    {
+        return $this->encryption;
+    }
+
+    /**
+     * @param SignatureInterface $encryption
+     */
+    public function setEncryption($encryption)
+    {
+        $this->encryption = $encryption;
+    }
+
     public function getIsFailure()
     {
         return !$this->getIsSuccess();
@@ -172,20 +179,15 @@ class ParseResponse
      */
     public function getRandStr()
     {
-        return $this->rand_str;
+        return $this->randStr;
     }
 
     /**
-     * @param string $rand_str
+     * @param string $randStr
      */
-    public function setRandStr($rand_str)
+    public function setRandStr($randStr)
     {
-        $this->rand_str = $rand_str;
-    }
-
-    public function getResponse()
-    {
-        return $this->response;
+        $this->randStr = $randStr;
     }
 
     /**
@@ -202,6 +204,22 @@ class ParseResponse
     protected function setSignature($signature)
     {
         $this->signature = $signature;
+    }
+
+    /**
+     * @return array
+     */
+    public static function getStatuses(): array
+    {
+        return self::$statuses;
+    }
+
+    /**
+     * @param array $statuses
+     */
+    public static function setStatuses(array $statuses)
+    {
+        self::$statuses = $statuses;
     }
 
     /**
@@ -236,22 +254,35 @@ class ParseResponse
         $this->timestamp = $timestamp;
     }
 
-    protected function loadResponseData()
+    public function init()
     {
-        $response = $this->getResponse();
-        $values = Serializer::unSerialize($this->getData());
-        $response->load($values);
+        parent::init();
+        if (is_null($this->stream)) {
+            throw new UnknownPropertyException('不明确的"stream"属性');
+        }
+        if (is_null($this->encryption) || !$this->encryption instanceof SignatureInterface) {
+            throw new UnknownPropertyException('不明确的"encryption"属性');
+        }
+        $map = [
+            'code'      => 'code',
+            'sign'      => 'signature',
+            'message'   => 'message',
+            'timestamp' => 'timestamp',
+            'randStr'   => 'randStr',
+            'data'      => 'data',
+            'error'     => 'code',
+        ];
+        Object::configure($this, $this->getStream(), $map);
+        $this->validate();
+
     }
 
-    protected function validateCode()
+    protected function validate()
     {
         if ($this->getIsFailure()) {
             throw new ResponseCodeException($this->getCode(), $this->getMessage());
         }
-    }
 
-    protected function validateSignature()
-    {
         $values = [
             'code'      => $this->getCode(),
             'message'   => $this->getMessage(),
@@ -261,7 +292,7 @@ class ParseResponse
         ];
         ksort($values);
         $signatureData = urldecode(http_build_query($values));
-        $valid = $this->encryption->validate($this->getSignature(), $signatureData);
+        $valid = $this->getEncryption()->validate($this->getSignature(), $signatureData);
         if ($valid === false) {
             throw new SignatureValidateException();
         }

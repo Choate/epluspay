@@ -3,7 +3,7 @@
 namespace choate\epluspay\exceptions;
 
 
-use choate\epluspay\base\ParseResponse;
+use choate\epluspay\base\Response;
 use choate\epluspay\Client;
 use Exception;
 
@@ -23,8 +23,8 @@ class ResponseCodeException extends \Exception
     }
 
     public function getName() {
-        if (isset(ParseResponse::$statuses[$this->getStatusCode()])) {
-            return ParseResponse::$statuses[$this->getStatusCode()];
+        if (isset(Response::$statuses[$this->getStatusCode()])) {
+            return Response::$statuses[$this->getStatusCode()];
         }
 
         return '未知错误';
